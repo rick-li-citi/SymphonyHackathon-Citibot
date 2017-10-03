@@ -56,11 +56,17 @@ const registerModule = (config) => {
              : "#";
     };
 
+    let searchMsgType = 'com.symphony.integration.zapier.event.v2.searchMessage';
+    let chartMsgType = 'com.symphony.integration.zapier.event.v2.chartMessage';
+    entityService.registerRenderer(searchMsgType, {}, controllerName);
+    entityService.registerRenderer(chartMsgType, {}, controllerName);
+    const chartMap = {
+        'ibm': 'CREDIT.BOND.US459200HK05.PRICE',
+        'google': 'CREDIT.BOND.US38259PAB85.PRICE',
+        'apple': 'CREDIT.BOND.US037833CF55.PRICE'
+    }
     controllerService.implement({
         action: _.throttle(function(data){
-            console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-            console.log(shareService);
-
             const article = data;
             shareService.share('article', {
                 title: article.docTitle,
@@ -70,36 +76,22 @@ const registerModule = (config) => {
                 publisher: "Citi",
                 author: article.analyst.join(','),
                 href: formatArticleUrl(article)
-            });
-
-
-            return;
-            const dialogsService = SYMPHONY.services.subscribe('dialogs');
-            // dialogsService.show('testDialog', 'Chart', 'citibotDialogService', {}, {type: data});
-            modulesService.show(
-                config.appId, {
-                    title: config.appTitle
-                },
-                controllerName,
-                'https://uat.citivelocity.com/analytics/charting3/?allowCross=false', {
-                    canFloat: true
-                }
-            );
-            // dialogsService.show('test', controllerName, `
-            // <dialog>
-            //     <h1>Comment</h1>
-            //     <multiline-input id="comment" placeholder="Add your comment..."/>
-            //     <div>
-            //         <action id="closeCommentDialog" class="tempo-text-color--link"/>
-            //         <action id="commentIssue" class="tempo-text-color--link"/>
-            //     </div>
-            // </dialog>
-            // `, {}, {});
-            
+            });            
         }, 300),
-        render(type, data) {
 
-            if (type == msgType) {
+        render(type, data) {
+            if (type === chartMsgType) {
+                let ticker = data.data.ticker;
+                ticker = ticker.replace('&nbsp;', '').trim();
+                console.log('=== ', ticker);
+              
+                let chartUrl = _.escape('https://uat.citivelocity.com/analytics/charting3/?allowCross=false&chartTag='+chartMap[ticker]);
+                console.log('chartUrl ', chartUrl);
+                return {template: `<messageML>
+                        <iframe src="${chartUrl}" height="300" width="400"/>
+                    </messageML>`, data: {}};
+            }
+            if (type === searchMsgType) {
                 
                 let resultJson = JSON.parse(data.data).Results;
 
@@ -122,9 +114,7 @@ const registerModule = (config) => {
                     return `<action id="${article.srcId}" class="tempo-text-color--link"/>`
                 }
                 
-                // let resultJson = [];
                 let resultML = resultJson.map( article => {
-                    console.log("!!!!12312312312312312312312123123");
                     console.log(article);
                     return `
                     <card class="barStyle" accent-color="tempo-bg-color--green" icon-src="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">
@@ -153,20 +143,7 @@ const registerModule = (config) => {
                     </card>`
                 });
                 
-                return {template: `<messageML>${resultML.join('')}
-                <card class="barStyle" accent="tempo-bg-color--green" iconSrc="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">
-                <header>
-                    
-                        Charting
-                    
-                </header>
-                <body>
-                    
-                </body>
-                </card>
-            
-                    <div><action id="charting" class="tempo-btn--primary"/></div>
-                    </messageML>`, data: actions};
+                return {template: `<messageML>${resultML.join('')}</messageML>`, data: actions};
                 // return {
                 //     template: `
                 //     <messageML>
@@ -256,6 +233,7 @@ const registerModule = (config) => {
                 //     `,
                 //     data: {}
                 // };
+               
             }
         },
         link() {
@@ -268,17 +246,6 @@ const registerModule = (config) => {
         },
         trigger() {
            
-            // modulesService.show(
-            //     config.appId, {
-            //         title: config.appTitle
-            //     },
-            //     controllerName,
-            //     'https://uat.citivelocity.com/analytics/charting3/?allowCross=false', {
-            //         canFloat: true
-            //     }
-            // );
-
-                console.log('===config ', config );
               const url = [
                 `${params.host}/citibot/${config.appContext}/app.html`,
                 `?configurationId=${params.configurationId}`,

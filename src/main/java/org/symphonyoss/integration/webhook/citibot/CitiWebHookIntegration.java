@@ -57,7 +57,7 @@ import javax.ws.rs.core.MediaType;
  *
  */
 @Component
-public class CitiWebHookIntegration extends WebHookIntegration {
+public class CitiWebHookIntegration extends WebHookIntegration implements MessageListener {
 
 	@Autowired
 	private CitiBotParserFactory parserFactory;
@@ -67,81 +67,106 @@ public class CitiWebHookIntegration extends WebHookIntegration {
 	@Autowired
 	private StreamService streamService;
 
+	private String integrationUser;
+
 	@Override
 	public void onCreate(final String integrationUser) {
 		super.onCreate(integrationUser);
-		// this.integrationUser = integrationUser;
 		String keystorePassword = System.getProperty("keystore.password");
+		this.integrationUser = integrationUser;
 		try {
 			symClient = SymphonyClientFactory.getClient(SymphonyClientFactory.TYPE.BASIC,
 					"innovate.citibot@symphony.com", // bot email
-					"/Users/kl68884/projects/symphony/SymphonyHackathon/certs/innovate.citibot.p12", // bot
+					"/Users/kl68884/projects/symphony/App-Integrations-Universal/certs/innovate.citibot.p12", // bot
+																												// cert
 					keystorePassword, // bot cert/keystore pass
 					"/Library/Java/JavaVirtualMachines/jdk1.8.0_60.jdk/Contents/Home/jre/lib/security/cacerts/", // truststore
 																													// file
 					"changeit"); // truststore password
-			this.symClient.getMessageService().addMessageListener(new MessageListener() {
-
-				@Override
-				public void onMessage(SymMessage message) {
-
-					String searchKey = "search";
-					String msgText = message.getMessageText();
-					System.out.println(msgText);
-					String streamId = message.getStreamId();
-					Stream stream = new Stream();
-					stream.setId(streamId);
-					Message ackMessage = new Message();
-					ackMessage.setMessage("<messageML>acked</messageML>");
-					ackMessage.setData("{}");
-					ackMessage.setVersion(MessageMLVersion.V2);
-					try {
-						postMessage(integrationUser, streamId, ackMessage);
-					} catch (RemoteApiException e1) {
-						// TODO Auto-generated catch block
-						e1.printStackTrace();
-					}
-					
-					if (StringUtils.containsIgnoreCase(msgText, searchKey)
-							&& StringUtils.containsIgnoreCase(msgText, "citibot")) {
-						String searchContent = StringUtils.substringAfterLast(msgText, searchKey).replaceAll("#", "")
-								.trim();
-						System.out.println(searchContent);
-						try {
-							String responseStr = CitiWebHookIntegration.this.searchCVContent(searchContent);
-							// WebHookParser parser = getParser(input);
-							WebHookPayload payload = new WebHookPayload(null, null, responseStr);
-							WebHookParser parser = parserFactory.getParser(payload);
-							Message outputMsg = parser.parse(payload);
-							ObjectMapper mapper = new ObjectMapper();
-							JsonNode newData = mapper.readTree(outputMsg.getData());
-							JsonNode searchMessageNode = ((ObjectNode) newData.get("citiSearchMessage")).put("data",
-									responseStr);
-							((ObjectNode) newData).put("citiSearchMessage", searchMessageNode);
-							outputMsg.setData(newData.toString());
-
-							// CitiWebHookIntegration.this.
-							// SymMessage aMsg = new SymMessage();
-							// aMsg.setFormat(SymMessage.Format.MESSAGEML);
-							// aMsg.setMessage(outputMsg.getMessage());
-
-							// citiBridge.postMessage(integrationUser, streamId, outputMsg);
-							// symClient.getMessagesClient().sendMessage(stream, aMsg);
-							// outputMsg.setData(responseStr);
-							Message sentMsg = postMessage(integrationUser, streamId, outputMsg);
-							System.out.println(sentMsg.getData());
-							;
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-					}
-				}
-
-			});
+			this.symClient.getMessageService().addMessageListener(this);
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
 		}
+	}
 
+	@Override
+	public void onMessage(SymMessage message) {
+		String searchKey = "search";
+		String msgText = message.getMessageText();
+		System.out.println(msgText);
+		String streamId = message.getStreamId();
+		Stream stream = new Stream();
+		stream.setId(streamId);
+		Message ackMessage = new Message();
+		ackMessage.setMessage("<messageML>ACK, One sec.</messageML>");
+		ackMessage.setData("{}");
+		ackMessage.setVersion(MessageMLVersion.V2);
+		try {
+			postMessage(integrationUser, streamId, ackMessage);
+		} catch (RemoteApiException e1) {
+			e1.printStackTrace();
+		}
+
+		if (StringUtils.containsIgnoreCase(msgText, searchKey) && StringUtils.containsIgnoreCase(msgText, "citibot")
+				|| StringUtils.containsIgnoreCase(msgText, "/search")) {
+			String searchContent = StringUtils.substringAfterLast(msgText, searchKey).replaceAll("#", "").trim();
+			System.out.println(searchContent);
+			try {
+				String responseStr = CitiWebHookIntegration.this.searchCVContent(searchContent);
+
+				WebHookPayload payload = new WebHookPayload(null, null, responseStr);
+				WebHookParser parser = parserFactory.getParser(payload);
+				Message outputMsg = parser.parse(payload);
+				ObjectMapper mapper = new ObjectMapper();
+				JsonNode newData = mapper.readTree(outputMsg.getData());
+				JsonNode searchMessageNode = ((ObjectNode) newData.get("citiSearchMessage")).put("data", responseStr);
+				((ObjectNode) newData).put("citiSearchMessage", searchMessageNode);
+				outputMsg.setData(newData.toString());
+
+				Message sentMsg = postMessage(integrationUser, streamId, outputMsg);
+				System.out.println(sentMsg.getData());
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		} else if (StringUtils.containsIgnoreCase(msgText, "/chart")) {
+			String searchContent = StringUtils.substringAfterLast(msgText, "chart").replaceAll("#", "").trim();
+			System.out.println(searchContent);
+			stream = new Stream();
+			stream.setId(streamId);
+			Message chartMessage = new Message();
+			chartMessage.setMessage("<messageML><div class=\"entity\" data-entity-id=\"citiChartMessage\">\n"
+					+ "    </div></messageML>");
+			chartMessage.setData(String.format(
+					"{\"citiChartMessage\":{\"type\":\"com.symphony.integration.zapier.event.v2.chartMessage\",\"version\":\"1.0\", \"data\": { \"ticker\": \"%s\"}}}",
+					searchContent));
+			chartMessage.setVersion(MessageMLVersion.V2);
+			Message sentMsg;
+			try {
+				sentMsg = postMessage(integrationUser, streamId, chartMessage);
+				System.out.println(sentMsg.getData());
+			} catch (RemoteApiException e) {
+				e.printStackTrace();
+			}
+
+		} else if (StringUtils.containsIgnoreCase(msgText, "/list")) {
+			stream = new Stream();
+			stream.setId(streamId);
+			Message listMessage = new Message();
+			listMessage.setMessage("<messageML>"+
+					 "<div>1.search</div>" +
+					 "<div>2.chart</div>" +
+					 "</messageML>");
+			listMessage.setData("{}");
+			listMessage.setVersion(MessageMLVersion.V2);
+			Message sentMsg;
+			try {
+				sentMsg = postMessage(integrationUser, streamId, listMessage);
+				System.out.println(sentMsg.getData());
+			} catch (RemoteApiException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public Message postMessage(String integrationUser, String stream, Message message) throws RemoteApiException {
@@ -159,9 +184,9 @@ public class CitiWebHookIntegration extends WebHookIntegration {
 		String urlOverHttps = String.format(
 				"https://uat.citivelocity.com/hubsearch2/json?q=%s&qencode_schema=base64&start=1&end=5&pubType=research,commentary&platformID=1&model=nonbetamodel-04282017&enrich-facet=Company,Author,Region,EMRegions",
 				searchContentB64);
-		
+
 		HttpGet getMethod = new HttpGet(urlOverHttps);
-		String cvCookies = System.getProperty("cv_cookies", ""); 
+		String cvCookies = "SMSESSION=9IF67NsmAA2GEO9ZOuT/PQiSzjva0xZ5sEpACe7YDT3vQn63NOTHUuWsGpR6IQkLhE4dCU8falV28+W9phmLJxvgCzHHs/f8zINfRyweyIUpEa7Yuttp4vFE9EvNK3vkqKW1o5H67dnO4J90I7Ht7xuUNIHUd4Uzj9ulrGh5vNtcKZwLHmIytm9LJGPPsl3Yi109+Tj70b5axjIbHrwi7jwXnIp2SL+E19288NOJxR3gEUqsPEZysuI4wbDJR10AzNI78N5zVcwWL3knAXJi5xE46LlAtfVP2sT6ga87qVCHCOkSsDSpawsXqOENJGsMpZneZq5Vq8GFppSDHHxccejZeEoZl9CPNCD8YUlQs5nMUc77KWCLWzVT3d8WWSSytVdxyIqQyK/G+UvofN87ruay8FWTLh/ptwANPL4g/6LRxEwynol864WZDqb8z2bE1xn5b42/eCAd9LfvlpfHHYTt6yXvOEXUiBlsiTngArB/cfeWJyXIJV77t9KVPyfMk3rtuXSm8nZymaxGWFLrbSE4qiCTkXcBWLrhzVOw35tUTyj+QveqSpNYoUpLze+7tcSG80l6hdNn65X2aekRRm/OG3oW3cPIoSf/FBjdzxkLB4mE/H3v5oK8omtRxFeC/SPFri9AWx+edSDLeW86gYdqWOrxoEFPvpj5kezjcPsEMdXGTbsTRh2Pjom2ULutKMS2xZ41TTuO8ivaAo+Fhe9BUF4HL8n3sRfYJlz0SXqHCCc1Y/HYAzFVQvaIWh2e/TfTlNMiBx+qagCfGFBzrISU9yGv9UUeed4x+gqvNzkKErtQbn5clKbKeGvLXN9V5S3YHISBR3UbLn4kJeeaIryg54K4sjvrzs4jNnH/+09tmtSmcNQnQNaFyfw6WYEDrnBo+N17Wnxp9WiI4IDEiLditRFfR6BK14n2p9w+tdOk7WNXbt0bhRMmKw5nLUpoPpsBciKIWGT8mEbf3+Z1d+pgKbPezTO+s3UoIRaEECPmlLFoZpL3jPnDXsQbpgtFm2DQfb/ERIDJib47LU8iw+mBgsVkhtfqBsELKs8pMO5HJPJ5u5DjM9q48I6XqcgM;";
 		getMethod.setHeader("Cookie", cvCookies);
 		HttpResponse response = httpClient.execute(getMethod);
 		HttpEntity entity = response.getEntity();
@@ -189,12 +214,10 @@ public class CitiWebHookIntegration extends WebHookIntegration {
 	 */
 	@Override
 	public Message parse(WebHookPayload input) throws WebHookParseException {
-		// WebHookParser parser = getParser(input);
 		WebHookParser parser = parserFactory.getParser(input);
 		return parser.parse(input);
 	}
 
-	
 	/**
 	 * @see WebHookIntegration#getSupportedContentTypes()
 	 */

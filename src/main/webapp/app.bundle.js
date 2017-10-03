@@ -48698,7 +48698,7 @@
 	  appSubTitle: 'CitiBot Webhook Integration',
 	  appIMShortHand: 'CitiBot', // will display "One on One with Zapier"
 	  appToggleSetupInstructions: true,
-	  appLogo: 'zapier_logo.png'
+	  appLogo: 'cv_chevron_fav_01.png'
 	};
 
 /***/ }),
