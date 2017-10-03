@@ -72,7 +72,7 @@ const registerModule = (config) => {
                 title: article.docTitle,
                 subTitle: "",
                 blurb: article.docTeaser,
-                date : new Date("07 June 2016").getTime() / 1000,
+                date : article.miliseconds / 1000,
                 publisher: "Citi",
                 author: article.analyst.join(','),
                 href: formatArticleUrl(article)
