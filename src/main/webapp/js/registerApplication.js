@@ -83,6 +83,13 @@ const registerModule = (config) => {
                          : article.documentType === "Research"  ? `https://uat.citivelocity.com/cv2/smartlink/research/${article.srcId}`
                          : "#";
                 };
+
+                const renderCategoryTitle = article => {
+                    return article["content-type"] === "video/mp4" ? '<span class="tempo-text-color--green">[VIDEO]</span>'
+                         : article.documentType === "Commentary"? '<span class="tempo-text-color--orange">[COMMENTARY]</span>'
+                         : article.documentType === "Research"  ? '<span class="tempo-text-color--purple">[RESEARCH]</span>'
+                         : "";
+                };
                 
                 // let resultJson = [];
                 let resultML = resultJson.map( article => {
@@ -92,7 +99,7 @@ const registerModule = (config) => {
                     <card class="barStyle" accent-color="tempo-bg-color--green" icon-src="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">
                         <header>
                             <div>
-                                ${article["content-type"] === "video/mp4" ? '<span class="tempo-text-color--green">[VIDEO]</span>' : ''}
+                                ${renderCategoryTitle(article)}
                                 <a class="tempo-text-color--link" href="${formatArticleUrl(article)}">${_.escape(article.docTitle)}</a>                                     
                             </div>
                         </header>
