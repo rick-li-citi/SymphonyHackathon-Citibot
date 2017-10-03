@@ -68,7 +68,7 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 	private StreamService streamService;
 
 	private String integrationUser;
-	
+
 	@Override
 	public void onCreate(final String integrationUser) {
 		super.onCreate(integrationUser);
@@ -88,7 +88,7 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 			System.out.println(e.getMessage());
 		}
 	}
-	
+
 	@Override
 	public void onMessage(SymMessage message) {
 		String searchKey = "search";
@@ -106,11 +106,10 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 		} catch (RemoteApiException e1) {
 			e1.printStackTrace();
 		}
-		
-		if (StringUtils.containsIgnoreCase(msgText, searchKey)
-				&& StringUtils.containsIgnoreCase(msgText, "citibot") || StringUtils.containsIgnoreCase(msgText, "/search")) {
-			String searchContent = StringUtils.substringAfterLast(msgText, searchKey).replaceAll("#", "")
-					.trim();
+
+		if (StringUtils.containsIgnoreCase(msgText, searchKey) && StringUtils.containsIgnoreCase(msgText, "citibot")
+				|| StringUtils.containsIgnoreCase(msgText, "/search")) {
+			String searchContent = StringUtils.substringAfterLast(msgText, searchKey).replaceAll("#", "").trim();
 			System.out.println(searchContent);
 			try {
 				String responseStr = CitiWebHookIntegration.this.searchCVContent(searchContent);
@@ -120,27 +119,27 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 				Message outputMsg = parser.parse(payload);
 				ObjectMapper mapper = new ObjectMapper();
 				JsonNode newData = mapper.readTree(outputMsg.getData());
-				JsonNode searchMessageNode = ((ObjectNode) newData.get("citiSearchMessage")).put("data",
-						responseStr);
+				JsonNode searchMessageNode = ((ObjectNode) newData.get("citiSearchMessage")).put("data", responseStr);
 				((ObjectNode) newData).put("citiSearchMessage", searchMessageNode);
 				outputMsg.setData(newData.toString());
 
 				Message sentMsg = postMessage(integrationUser, streamId, outputMsg);
 				System.out.println(sentMsg.getData());
-				
+
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		}else if(StringUtils.containsIgnoreCase(msgText, "/chart")) {
-			String searchContent = StringUtils.substringAfterLast(msgText, "chart").replaceAll("#", "")
-					.trim();
+		} else if (StringUtils.containsIgnoreCase(msgText, "/chart")) {
+			String searchContent = StringUtils.substringAfterLast(msgText, "chart").replaceAll("#", "").trim();
 			System.out.println(searchContent);
 			stream = new Stream();
 			stream.setId(streamId);
 			Message chartMessage = new Message();
-			chartMessage.setMessage("<messageML><div class=\"entity\" data-entity-id=\"citiChartMessage\">\n" + 
-					"    </div></messageML>");
-			chartMessage.setData(String.format("{\"citiChartMessage\":{\"type\":\"com.symphony.integration.zapier.event.v2.chartMessage\",\"version\":\"1.0\", \"data\": { \"ticker\": \"%s\"}}}", searchContent));
+			chartMessage.setMessage("<messageML><div class=\"entity\" data-entity-id=\"citiChartMessage\">\n"
+					+ "    </div></messageML>");
+			chartMessage.setData(String.format(
+					"{\"citiChartMessage\":{\"type\":\"com.symphony.integration.zapier.event.v2.chartMessage\",\"version\":\"1.0\", \"data\": { \"ticker\": \"%s\"}}}",
+					searchContent));
 			chartMessage.setVersion(MessageMLVersion.V2);
 			Message sentMsg;
 			try {
@@ -149,7 +148,24 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 			} catch (RemoteApiException e) {
 				e.printStackTrace();
 			}
-			
+
+		} else if (StringUtils.containsIgnoreCase(msgText, "/list")) {
+			stream = new Stream();
+			stream.setId(streamId);
+			Message listMessage = new Message();
+			listMessage.setMessage("<messageML>"+
+					 "<div>1.search</div>" +
+					 "<div>2.chart</div>" +
+					 "</messageML>");
+			listMessage.setData("{}");
+			listMessage.setVersion(MessageMLVersion.V2);
+			Message sentMsg;
+			try {
+				sentMsg = postMessage(integrationUser, streamId, listMessage);
+				System.out.println(sentMsg.getData());
+			} catch (RemoteApiException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -168,9 +184,9 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 		String urlOverHttps = String.format(
 				"https://uat.citivelocity.com/hubsearch2/json?q=%s&qencode_schema=base64&start=1&end=5&pubType=research,commentary&platformID=1&model=nonbetamodel-04282017&enrich-facet=Company,Author,Region,EMRegions",
 				searchContentB64);
-		
+
 		HttpGet getMethod = new HttpGet(urlOverHttps);
-		String cvCookies = "SMSESSION=AuV1FU4HXUVpy1du1/YHnHnHF7WYH49KpNA3DMLlAY2jiqcOILurOwBcuIcq7DYEgIYFPcW0ttVHQeJqMYmiUCPwaPbziFAesWb9M0SXhGeuEvqt2+iJVsrSmxGzdEMCvKWDOhQvn+J/lLvpLjs3a4/FYz1SsIriMNpp/oAihXnwg+BhxC9yFwXgCy2yh4YEZkNRpjhBo881qi6Z0KZUWxIJMHqW4POCpLA8j/w/S1S4IiSz+qjNf7E6wPFZDFJxWeev50b/bU1up1gVS+Q4DkOLGlpNzj3STdnRaQ+GZySll3VJPXGOgicW13sRVX1G2AnWN42LmUjsSKX36E1bGbXrFOMYSGR9BtyHvMGtbL4Mj0RnWvuohCT5zqiGja+8bBECSj6NVfUHFpiqb9r66I392T2SzkWQGXFi1Vc+4q3mXI/wbRNbXw+CrKJWm54L3cyXvJI3lV4IXbM4Z+Liikx8qKScA7XrY3ATn9ykupML9APXCWj+2lA8A6vfrptsvQyIRO6nS0AELf4cjDn2nQjWqVoEwU/Ygiq6uVTfS0U7lQKW+/SSNgbxMPk58r567Zp03jPITiZgW+uZ6OQ3Wja9RM1C27GJ8b6nLFCOs0h7FOUPYxBcdL9UFq4iRi4xUU4IC0/0rVACBIvZhRL/IeFS1fGFjkmPvas/hedFof8j46VhOGZmT1Ug9+TLT0m6zJ5vxcGkrUNZIEcuYmO4Icn37WTTSP62iWhkSvPGpXRzpBDAjxCZVp1DyZdavjs+VygNOeNTIHvXQuXGKJXm5u1tdtcsF2mg6b80OKitwZdpqWwxJ++hbgbDLUlxsu05qQcx3RprnDOwpisk6p4b7i9ZkhR07m4bnR+1HxWjcn4wjIol6ZlpOWRmBs6oy0Mw9g8sTLmXf0QHl3CjQ4Y+GpiozMWDbOs+XYVRsVV1EZRhHv1qxmD9XS4x9pQATCGtYiVWyy83Ip/QBdi8zGuv1JrraIGFm90KjA/oO8NDIjLAbe7xy/7w1nZH4R7xEPkBj/dSRQKbnHULF6CLRP12+KYTHwvpigYLJD3PqM270Y2PuebiOx82x4VwTU72tWQk; path=/; domain=.citivelocity.com;"; 
+		String cvCookies = "SMSESSION=9IF67NsmAA2GEO9ZOuT/PQiSzjva0xZ5sEpACe7YDT3vQn63NOTHUuWsGpR6IQkLhE4dCU8falV28+W9phmLJxvgCzHHs/f8zINfRyweyIUpEa7Yuttp4vFE9EvNK3vkqKW1o5H67dnO4J90I7Ht7xuUNIHUd4Uzj9ulrGh5vNtcKZwLHmIytm9LJGPPsl3Yi109+Tj70b5axjIbHrwi7jwXnIp2SL+E19288NOJxR3gEUqsPEZysuI4wbDJR10AzNI78N5zVcwWL3knAXJi5xE46LlAtfVP2sT6ga87qVCHCOkSsDSpawsXqOENJGsMpZneZq5Vq8GFppSDHHxccejZeEoZl9CPNCD8YUlQs5nMUc77KWCLWzVT3d8WWSSytVdxyIqQyK/G+UvofN87ruay8FWTLh/ptwANPL4g/6LRxEwynol864WZDqb8z2bE1xn5b42/eCAd9LfvlpfHHYTt6yXvOEXUiBlsiTngArB/cfeWJyXIJV77t9KVPyfMk3rtuXSm8nZymaxGWFLrbSE4qiCTkXcBWLrhzVOw35tUTyj+QveqSpNYoUpLze+7tcSG80l6hdNn65X2aekRRm/OG3oW3cPIoSf/FBjdzxkLB4mE/H3v5oK8omtRxFeC/SPFri9AWx+edSDLeW86gYdqWOrxoEFPvpj5kezjcPsEMdXGTbsTRh2Pjom2ULutKMS2xZ41TTuO8ivaAo+Fhe9BUF4HL8n3sRfYJlz0SXqHCCc1Y/HYAzFVQvaIWh2e/TfTlNMiBx+qagCfGFBzrISU9yGv9UUeed4x+gqvNzkKErtQbn5clKbKeGvLXN9V5S3YHISBR3UbLn4kJeeaIryg54K4sjvrzs4jNnH/+09tmtSmcNQnQNaFyfw6WYEDrnBo+N17Wnxp9WiI4IDEiLditRFfR6BK14n2p9w+tdOk7WNXbt0bhRMmKw5nLUpoPpsBciKIWGT8mEbf3+Z1d+pgKbPezTO+s3UoIRaEECPmlLFoZpL3jPnDXsQbpgtFm2DQfb/ERIDJib47LU8iw+mBgsVkhtfqBsELKs8pMO5HJPJ5u5DjM9q48I6XqcgM;";
 		getMethod.setHeader("Cookie", cvCookies);
 		HttpResponse response = httpClient.execute(getMethod);
 		HttpEntity entity = response.getEntity();
@@ -202,7 +218,6 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 		return parser.parse(input);
 	}
 
-	
 	/**
 	 * @see WebHookIntegration#getSupportedContentTypes()
 	 */
