@@ -13,7 +13,8 @@ const dependencies = [
     'modules',
     'entity',
     'dialogs',
-    'links'
+    'links',
+    'share'
 ];
 
 const params = {
@@ -42,10 +43,37 @@ const registerModule = (config) => {
     
     const modulesService = SYMPHONY.services.subscribe('modules');
     const entityService = SYMPHONY.services.subscribe('entity');
+    const shareService = SYMPHONY.services.subscribe("share");
+
     let msgType = 'com.symphony.integration.zapier.event.v2.searchMessage';
     entityService.registerRenderer(msgType, {}, controllerName);
+
+
+    const formatArticleUrl = article => {
+        return article["content-type"] === "video/mp4" ? article.mediaUrlAndroid
+             : article.documentType === "Commentary"? `https://uat.citivelocity.com/cv2/smartlink/commentary/${article.srcId}`
+             : article.documentType === "Research"  ? `https://uat.citivelocity.com/cv2/smartlink/research/${article.srcId}`
+             : "#";
+    };
+
     controllerService.implement({
         action: _.throttle(function(data){
+            console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+            console.log(shareService);
+
+            const article = data;
+            shareService.share('article', {
+                title: article.docTitle,
+                subTitle: "",
+                blurb: article.docTeaser,
+                date : new Date("07 June 2016").getTime() / 1000,
+                publisher: "Citi",
+                author: article.analyst.join(','),
+                href: formatArticleUrl(article)
+            });
+
+
+            return;
             const dialogsService = SYMPHONY.services.subscribe('dialogs');
             // dialogsService.show('testDialog', 'Chart', 'citibotDialogService', {}, {type: data});
             modulesService.show(
@@ -75,21 +103,24 @@ const registerModule = (config) => {
                 
                 let resultJson = JSON.parse(data.data).Results;
 
-                
-
-                const formatArticleUrl = article => {
-                    return article["content-type"] === "video/mp4" ? article.mediaUrlAndroid
-                         : article.documentType === "Commentary"? `https://uat.citivelocity.com/cv2/smartlink/commentary/${article.srcId}`
-                         : article.documentType === "Research"  ? `https://uat.citivelocity.com/cv2/smartlink/research/${article.srcId}`
-                         : "#";
-                };
-
                 const renderCategoryTitle = article => {
                     return article["content-type"] === "video/mp4" ? '<span class="tempo-text-color--green">[VIDEO]</span>'
                          : article.documentType === "Commentary"? '<span class="tempo-text-color--orange">[COMMENTARY]</span>'
                          : article.documentType === "Research"  ? '<span class="tempo-text-color--purple">[RESEARCH]</span>'
                          : "";
                 };
+
+                let actions = {};
+
+                const addShareButton = article => {
+                    actions[article.srcId] = {
+                        label: 'SHARE',
+                        service: controllerName,
+                        data: article,
+                        icon: 'https://cdn3.iconfinder.com/data/icons/social-media-2-2/256/Share-16.png'
+                    };
+                    return `<action id="${article.srcId}" class="tempo-text-color--link"/>`
+                }
                 
                 // let resultJson = [];
                 let resultML = resultJson.map( article => {
@@ -100,19 +131,23 @@ const registerModule = (config) => {
                         <header>
                             <div>
                                 ${renderCategoryTitle(article)}
-                                <a class="tempo-text-color--link" href="${formatArticleUrl(article)}">${_.escape(article.docTitle)}</a>                                     
+                                <a class="tempo-text-color--link" href="${formatArticleUrl(article)}">${_.escape(article.docTitle)}</a>
+                                &nbsp; ${addShareButton(article)}
                             </div>
                         </header>
                         <body>
-                        <div>
+                        <div>                        
                             <span class="tempo-text-color--secondary">Author</span>
                             <span class="tempo-text-color--normal">${article.analyst.join(',')}</span>
+                        </div>
+                        <div>
                             <br />
                             <span class="tempo-text-color--secondary">Description:</span>
                             <span class="tempo-text-color--normal">${_.escape(article.docTeaser)}</span>
                             <br/>
                             ${article.coverImageURL ? '<img src="${article.coverImageURL}"/>' : ''}
                         </div>
+                        
                     <hr/>
                     </body>
                     </card>`
@@ -131,9 +166,7 @@ const registerModule = (config) => {
                 </card>
             
                     <div><action id="charting" class="tempo-btn--primary"/></div>
-                    </messageML>`, data: {
-                        charting: {label: 'Charting', service: controllerName, data: {searchContent: 'ibm'}}
-                }};
+                    </messageML>`, data: actions};
                 // return {
                 //     template: `
                 //     <messageML>
