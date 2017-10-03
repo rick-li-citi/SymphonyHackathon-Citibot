@@ -126,9 +126,11 @@ const registerModule = (config) => {
                             </div>
                         </header>
                         <body>
-                        <div>                        
-                            <span class="tempo-text-color--secondary">Author</span>
-                            <span class="tempo-text-color--normal">${article.analyst.join(',')}</span>
+                        <div>
+                            ${article.analyst ? `<span class="tempo-text-color--secondary">Author</span>
+                            <span class="tempo-text-color--normal">${article.analyst.join(',')}</span>&nbsp; &nbsp;` : ''}                            
+                            <span class="tempo-text-color--secondary">Date</span>
+                            <span class="tempo-text-color--normal">${new Date(article.miliseconds).toString()}</span>
                         </div>
                         <div>
                             <br />
