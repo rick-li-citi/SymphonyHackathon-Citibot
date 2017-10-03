@@ -1,0 +1,62 @@
+# For debugging purposes, uncomment following lines
+# logging:
+#   level:
+#     org.symphonyoss: DEBUG
+
+server:
+  address: 127.0.0.1
+  port: 8080
+  display-name: Integration Bridge
+  context-path: /citibot
+  connection-timeout: 20000
+  tomcat:
+    accesslog:
+      enabled: true
+      directory: logs
+      pattern: "%h %l %u %t &quot;%r&quot; %s %b"
+      prefix: localhost_access_log
+      suffix: .txt
+    basedir: /Users/kl68884/projects/symphony/SymphonyHackathon/tomcat
+
+spring:
+  mvc:
+    dispatch-options-request: true
+    media-types:
+      json: application/json
+      xml: application/xml
+      csv: text/csv
+      plain: text/plain
+      x-www-form-urlencoded: application/x-www-form-urlencoded
+      form-data: multipart/form-data
+    servlet:
+      load-on-startup: 1
+    static-path-pattern: /apps/citibot/**
+  profiles:
+    active: jira, github, salesforce, universal, trello, zapier
+
+endpoints:
+  enabled: false
+  health:
+    enabled: true
+  metrics:
+    enabled: true
+    filter:
+      enabled: false
+
+pod:
+  min_version: 1.44.0
+
+agent:
+  min_version: 1.44.0
+
+key_manager:
+  min_version: 1.44.0
+
+management:
+  security:
+    enabled: false
+
+#
+# Time (in minutes) to persist in a local cache the pod certificate to check JWT signature
+#
+public_pod_certificate_cache_duration: 60

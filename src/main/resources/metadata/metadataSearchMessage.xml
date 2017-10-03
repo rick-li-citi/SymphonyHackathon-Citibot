@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<metadata name="citiSearchMessage" type="com.symphony.integration.zapier.event.v2.searchMessage" version="1.0">
+	<field key="cdnHost" value="cdnHost" />
+    <field key="Results" value="Results" />
+    <object id="result" type="com.symphony.integration.zapier.event.message" version="1.0">
+        <field key="cdnHost" value="cdnHost" />
+        <field key="Results" value="Results" />
+        
+    </object>
+
+</metadata>

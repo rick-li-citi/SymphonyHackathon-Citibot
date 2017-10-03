@@ -1,0 +1,15 @@
+{
+  "applications": [
+    {
+      "type": "sandbox",
+      "id": "citibot",
+      "name": "citibot",
+      "blurb": " Integration of citivelocity content. ",
+      "publisher": "Rick Li",
+      "url": "https://rick-li.ngrok.io/citibot/apps/citibot/controller.html?configurationId=59c4c95ee4b009e9128fbb95&botUserId=346621040656545&id=citibot&context=citibot/apps/citibot",
+      "icon": "https://rick-li.ngrok.io/citibot/apps/citibot/img/cv_chevron_fav_01.png",
+      "domain": ".ngrok.io",
+      "backurl":  "https://rick-li.ngrok.io/citibot/apps/citibot/controller.html?configurationId=59c4c95ee4b009e9128fbb95&botUserId=346621040656545&id=citibot&context=apps/citibot"
+    }
+  ]
+}

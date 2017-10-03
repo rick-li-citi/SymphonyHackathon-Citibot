@@ -1,0 +1,13 @@
+applications:
+  zapier:
+    component: zapierWebHookIntegration
+    name: Zapier
+    description: "Add an ecosystem of 600+ apps to the Symphony platform. Citibot sends notifications and content to Symphony IMs or rooms from your favorite applications including GMail, Office 365, Trello, HubSpot, Twitter, LinkedIn, and hundreds of other productivity apps."
+    publisher: Rick Li
+    context: zapier
+  citibot:
+    component: citiWebHookIntegration
+    name: CitiBot
+    description: "Add an ecosystem of 600+ apps to the Symphony platform. Citibot sends notifications and content to Symphony IMs or rooms from your favorite applications including GMail, Office 365, Trello, HubSpot, Twitter, LinkedIn, and hundreds of other productivity apps."
+    publisher: Rick Li
+    context: citibot 
