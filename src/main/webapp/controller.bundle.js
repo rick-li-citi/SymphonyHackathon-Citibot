@@ -11372,7 +11372,7 @@
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
-	var dependencies = ['ui', 'extended-user-info', 'modules', 'entity', 'dialogs', 'links'];
+	var dependencies = ['ui', 'extended-user-info', 'modules', 'entity', 'dialogs', 'links', 'share'];
 	
 	var params = {
 	    configurationId: _utils.Utils.getParameterByName('configurationId'),
@@ -11395,6 +11395,15 @@
 	
 	    var modulesService = SYMPHONY.services.subscribe('modules');
 	    var entityService = SYMPHONY.services.subscribe('entity');
+	    var shareService = SYMPHONY.services.subscribe("share");
+	
+	    var msgType = 'com.symphony.integration.zapier.event.v2.searchMessage';
+	    entityService.registerRenderer(msgType, {}, controllerName);
+	
+	    var formatArticleUrl = function formatArticleUrl(article) {
+	        return article["content-type"] === "video/mp4" ? article.mediaUrlAndroid : article.documentType === "Commentary" ? 'https://uat.citivelocity.com/cv2/smartlink/commentary/' + article.srcId : article.documentType === "Research" ? 'https://uat.citivelocity.com/cv2/smartlink/research/' + article.srcId : "#";
+	    };
+	
 	    var searchMsgType = 'com.symphony.integration.zapier.event.v2.searchMessage';
 	    var chartMsgType = 'com.symphony.integration.zapier.event.v2.chartMessage';
 	    entityService.registerRenderer(searchMsgType, {}, controllerName);
@@ -11406,14 +11415,18 @@
 	    };
 	    controllerService.implement({
 	        action: _lodash2.default.throttle(function (data) {
-	            var dialogsService = SYMPHONY.services.subscribe('dialogs');
-	            // dialogsService.show('testDialog', 'Chart', 'citibotDialogService', {}, {type: data});
-	            modulesService.show(config.appId, {
-	                title: config.appTitle
-	            }, controllerName, 'https://uat.citivelocity.com/analytics/charting3/?allowCross=false', {
-	                canFloat: true
+	            var article = data;
+	            shareService.share('article', {
+	                title: article.docTitle,
+	                subTitle: "",
+	                blurb: article.docTeaser,
+	                date: article.miliseconds / 1000,
+	                publisher: "Citi",
+	                author: article.analyst.join(','),
+	                href: formatArticleUrl(article)
 	            });
 	        }, 300),
+	
 	        render: function render(type, data) {
 	            if (type === chartMsgType) {
 	                var ticker = data.data.ticker;
@@ -11428,22 +11441,115 @@
 	
 	                var resultJson = JSON.parse(data.data).Results;
 	
-	                var formatArticleUrl = function formatArticleUrl(article) {
-	                    return article["content-type"] === "video/mp4" ? article.mediaUrlAndroid : article.documentType === "Commentary" ? 'https://uat.citivelocity.com/cv2/smartlink/commentary/' + article.srcId : article.documentType === "Research" ? 'https://uat.citivelocity.com/cv2/smartlink/research/' + article.srcId : "#";
-	                };
-	
 	                var renderCategoryTitle = function renderCategoryTitle(article) {
 	                    return article["content-type"] === "video/mp4" ? '<span class="tempo-text-color--green">[VIDEO]</span>' : article.documentType === "Commentary" ? '<span class="tempo-text-color--orange">[COMMENTARY]</span>' : article.documentType === "Research" ? '<span class="tempo-text-color--purple">[RESEARCH]</span>' : "";
 	                };
 	
+	                var actions = {};
+	
+	                var addShareButton = function addShareButton(article) {
+	                    actions[article.srcId] = {
+	                        label: ' ',
+	                        service: controllerName,
+	                        data: article,
+	                        icon: 'https://cdn3.iconfinder.com/data/icons/social-media-2-2/256/Share-16.png'
+	                    };
+	                    return '<action id="' + article.srcId + '" class="tempo-text-color--link"/>';
+	                };
+	
 	                var resultML = resultJson.map(function (article) {
 	                    console.log(article);
-	                    return '\n                    <card class="barStyle" accent-color="tempo-bg-color--green" icon-src="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">\n                        <header>\n                            <div>\n                                ' + renderCategoryTitle(article) + '\n                                <a class="tempo-text-color--link" href="' + formatArticleUrl(article) + '">' + _lodash2.default.escape(article.docTitle) + '</a>                                     \n                            </div>\n                        </header>\n                        <body>\n                        <div>\n                            <span class="tempo-text-color--secondary">Author</span>\n                            <span class="tempo-text-color--normal">' + article.analyst.join(',') + '</span>\n                            <br />\n                            <span class="tempo-text-color--secondary">Description:</span>\n                            <span class="tempo-text-color--normal">' + _lodash2.default.escape(article.docTeaser) + '</span>\n                            <br/>\n                            ' + (article.coverImageURL ? '<img src="${article.coverImageURL}"/>' : '') + '\n                        </div>\n                    <hr/>\n                    </body>\n                    </card>';
+	                    return '\n                    <card class="barStyle" accent-color="tempo-bg-color--green" icon-src="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">\n                        <header>\n                            <div>\n                                ' + renderCategoryTitle(article) + '\n                                <a class="tempo-text-color--link" href="' + formatArticleUrl(article) + '">' + _lodash2.default.escape(article.docTitle) + '</a>\n                                &nbsp; ' + addShareButton(article) + '\n                            </div>\n                        </header>\n                        <body>\n                        <div>\n                            ' + (article.analyst ? '<span class="tempo-text-color--secondary">Author</span>\n                            <span class="tempo-text-color--normal">' + article.analyst.join(',') + '</span>&nbsp; &nbsp;' : '') + '                            \n                            <span class="tempo-text-color--secondary">Date</span>\n                            <span class="tempo-text-color--normal">' + new Date(article.miliseconds).toString() + '</span>\n                        </div>\n                        <div>\n                            <br />\n                            <span class="tempo-text-color--secondary">Description:</span>\n                            <span class="tempo-text-color--normal">' + _lodash2.default.escape(article.docTeaser) + '</span>\n                            <br/>\n                            ' + (article.coverImageURL ? '<img src="${article.coverImageURL}"/>' : '') + '\n                        </div>\n                        \n                    <hr/>\n                    </body>\n                    </card>';
 	                });
 	
-	                return { template: '<messageML>' + resultML.join('') + '\n                    </messageML>', data: {
-	                        charting: { label: 'Charting', service: controllerName, data: { searchContent: 'ibm' } }
-	                    } };
+	                return { template: '<messageML>' + resultML.join('') + '</messageML>', data: actions };
+	                // return {
+	                //     template: `
+	                //     <messageML>
+	
+	                //         <div>
+	                //             <a class="tempo-text-color--link" href="www.google.com">xxxx</a>
+	                //                 <span>Author</span>
+	                //                 <span class="tempo-text-color--blue">cccc</span> 
+	                //         </div>
+	
+	                //     <div>
+	
+	                //         <span class="tempo-text-color--secondary">Description:</span>
+	
+	                //         <span class="tempo-text-color--normal">dccc</span>
+	
+	                //     <br/>
+	
+	                // </div>
+	                // <hr/>
+	                // <div>
+	                // <action id="assignTo" class="tempo-btn--primary"/>
+	                // </div>
+	
+	
+	                //     </messageML>
+	                //     `,
+	                //     data: {assignTo: {label: 'Chart', service: controllerName, data: {a: 111}}}
+	                // }
+	                // return {
+	                //     // template: `<messageML>
+	                //     //     <div >hello world</div>
+	                //     //     <iframe height="200" width="400" src="https://uat.citivelocity.com/analytics/charting3/?allowCross=false" />
+	
+	                //     // </messageML>`,
+	                //     template: `
+	                //     <messageML>
+	                //     <div class="entity" >
+	                //     <card class="barStyle" accent="tempo-bg-color--green" iconSrc="https://cdn1.iconfinder.com/data/icons/logotypes/32/chrome-32.png">
+	                //         <header>
+	                //             <div>
+	                //                 <img src="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png" class="tempo-icon--document" />
+	
+	                //                 <a class="tempo-text-color--link" href="www.google.com">hello google</a>
+	                //                     <span class="tempo-text-color--normal">Subject is  - </span>
+	                //                     <span>User</span>
+	                //                     <span class="tempo-text-color--green">action</span>
+	
+	                //             </div>
+	                //         </header>
+	                //         <body>
+	                //             <div class="labelBackground badge">
+	                //                 <div>
+	                //                         <span class="tempo-text-color--secondary">Description:</span>
+	                //                         <span class="tempo-text-color--normal">xxxxxxxxx</span>
+	                //                     <br/>
+	                //                     <span class="tempo-text-color--secondary">Assignee:</span>
+	                //                         <mention email="racke1983cn@gmail.com" />
+	                //                 </div>
+	                //                 <hr/>
+	                //                 <div>
+	                //                     <div>
+	                //                     <img src="https://uat.citivelocity.com/analytics/eppublic/chartingbe/images/a413e76d-0069-432f-9265-e8d3520fb837.png"/>
+	                //                     </div>
+	                //                     <div>
+	                //                         <span class="tempo-text-color--secondary">&#160;&#160;&#160;Epic:</span>
+	                //                         <a href="http://google.com">google</a>
+	                //                     <span class="tempo-text-color--secondary">&#160;&#160;&#160;Status:</span>
+	                //                     <span class="tempo-bg-color--red tempo-text-color--white tempo-token">
+	                //                         testtesttest
+	                //                     </span>
+	
+	
+	                //                         <span class="tempo-text-color--secondary">&#160;&#160;&#160;Labels:</span>
+	
+	                //                             <span class="hashTag">#ddd</span>
+	                //                         </div>
+	
+	                //                 </div>
+	                //             </div>
+	                //         </body>
+	                //     </card>
+	                // </div>
+	                // </messageML>
+	                //     `,
+	                //     data: {}
+	                // };
 	            }
 	        },
 	        link: function link() {},

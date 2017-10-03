@@ -16,6 +16,7 @@
 
 package org.symphonyoss.integration.webhook.citibot;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -46,6 +47,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import static org.symphonyoss.integration.core.properties.IntegrationBridgeImplProperties.USER_POSTED_MESSAGE;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -68,11 +72,20 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 	private StreamService streamService;
 
 	private String integrationUser;
-
+	
+	private String cvCookies;
+	
+	@SuppressWarnings("deprecation")
 	@Override
 	public void onCreate(final String integrationUser) {
 		super.onCreate(integrationUser);
 		String keystorePassword = System.getProperty("keystore.password");
+		InputStream inputStream = ClassLoader.class.getResourceAsStream("/cvCookie");
+		try {
+			cvCookies = IOUtils.toString(inputStream);
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
 		this.integrationUser = integrationUser;
 		try {
 			symClient = SymphonyClientFactory.getClient(SymphonyClientFactory.TYPE.BASIC,
@@ -101,6 +114,7 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 		ackMessage.setMessage("<messageML>ACK, One sec.</messageML>");
 		ackMessage.setData("{}");
 		ackMessage.setVersion(MessageMLVersion.V2);
+		
 		try {
 			postMessage(integrationUser, streamId, ackMessage);
 		} catch (RemoteApiException e1) {
@@ -154,8 +168,10 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 			stream.setId(streamId);
 			Message listMessage = new Message();
 			listMessage.setMessage("<messageML>"+
-					 "<div>1.search</div>" +
-					 "<div>2.chart</div>" +
+					"<ul>" +
+					 "<li>1. /search</li>" +
+					 "<li>2. /chart</li>" +
+					 "</ul>" +
 					 "</messageML>");
 			listMessage.setData("{}");
 			listMessage.setVersion(MessageMLVersion.V2);
@@ -186,7 +202,7 @@ public class CitiWebHookIntegration extends WebHookIntegration implements Messag
 				searchContentB64);
 
 		HttpGet getMethod = new HttpGet(urlOverHttps);
-		String cvCookies = "SMSESSION=9IF67NsmAA2GEO9ZOuT/PQiSzjva0xZ5sEpACe7YDT3vQn63NOTHUuWsGpR6IQkLhE4dCU8falV28+W9phmLJxvgCzHHs/f8zINfRyweyIUpEa7Yuttp4vFE9EvNK3vkqKW1o5H67dnO4J90I7Ht7xuUNIHUd4Uzj9ulrGh5vNtcKZwLHmIytm9LJGPPsl3Yi109+Tj70b5axjIbHrwi7jwXnIp2SL+E19288NOJxR3gEUqsPEZysuI4wbDJR10AzNI78N5zVcwWL3knAXJi5xE46LlAtfVP2sT6ga87qVCHCOkSsDSpawsXqOENJGsMpZneZq5Vq8GFppSDHHxccejZeEoZl9CPNCD8YUlQs5nMUc77KWCLWzVT3d8WWSSytVdxyIqQyK/G+UvofN87ruay8FWTLh/ptwANPL4g/6LRxEwynol864WZDqb8z2bE1xn5b42/eCAd9LfvlpfHHYTt6yXvOEXUiBlsiTngArB/cfeWJyXIJV77t9KVPyfMk3rtuXSm8nZymaxGWFLrbSE4qiCTkXcBWLrhzVOw35tUTyj+QveqSpNYoUpLze+7tcSG80l6hdNn65X2aekRRm/OG3oW3cPIoSf/FBjdzxkLB4mE/H3v5oK8omtRxFeC/SPFri9AWx+edSDLeW86gYdqWOrxoEFPvpj5kezjcPsEMdXGTbsTRh2Pjom2ULutKMS2xZ41TTuO8ivaAo+Fhe9BUF4HL8n3sRfYJlz0SXqHCCc1Y/HYAzFVQvaIWh2e/TfTlNMiBx+qagCfGFBzrISU9yGv9UUeed4x+gqvNzkKErtQbn5clKbKeGvLXN9V5S3YHISBR3UbLn4kJeeaIryg54K4sjvrzs4jNnH/+09tmtSmcNQnQNaFyfw6WYEDrnBo+N17Wnxp9WiI4IDEiLditRFfR6BK14n2p9w+tdOk7WNXbt0bhRMmKw5nLUpoPpsBciKIWGT8mEbf3+Z1d+pgKbPezTO+s3UoIRaEECPmlLFoZpL3jPnDXsQbpgtFm2DQfb/ERIDJib47LU8iw+mBgsVkhtfqBsELKs8pMO5HJPJ5u5DjM9q48I6XqcgM;";
+
 		getMethod.setHeader("Cookie", cvCookies);
 		HttpResponse response = httpClient.execute(getMethod);
 		HttpEntity entity = response.getEntity();

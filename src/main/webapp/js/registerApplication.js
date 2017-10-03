@@ -106,7 +106,7 @@ const registerModule = (config) => {
 
                 const addShareButton = article => {
                     actions[article.srcId] = {
-                        label: 'SHARE',
+                        label: ' ',
                         service: controllerName,
                         data: article,
                         icon: 'https://cdn3.iconfinder.com/data/icons/social-media-2-2/256/Share-16.png'
