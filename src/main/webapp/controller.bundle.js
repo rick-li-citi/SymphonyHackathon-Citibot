@@ -11249,7 +11249,7 @@
 	  appSubTitle: 'CitiBot Webhook Integration',
 	  appIMShortHand: 'CitiBot', // will display "One on One with Zapier"
 	  appToggleSetupInstructions: true,
-	  appLogo: 'zapier_logo.png'
+	  appLogo: 'cv_chevron_fav_01.png'
 	};
 
 /***/ }),
@@ -11395,8 +11395,15 @@
 	
 	    var modulesService = SYMPHONY.services.subscribe('modules');
 	    var entityService = SYMPHONY.services.subscribe('entity');
-	    var msgType = 'com.symphony.integration.zapier.event.v2.searchMessage';
-	    entityService.registerRenderer(msgType, {}, controllerName);
+	    var searchMsgType = 'com.symphony.integration.zapier.event.v2.searchMessage';
+	    var chartMsgType = 'com.symphony.integration.zapier.event.v2.chartMessage';
+	    entityService.registerRenderer(searchMsgType, {}, controllerName);
+	    entityService.registerRenderer(chartMsgType, {}, controllerName);
+	    var chartMap = {
+	        'ibm': 'CREDIT.BOND.US459200HK05.PRICE',
+	        'google': 'CREDIT.BOND.US38259PAB85.PRICE',
+	        'apple': 'CREDIT.BOND.US037833CF55.PRICE'
+	    };
 	    controllerService.implement({
 	        action: _lodash2.default.throttle(function (data) {
 	            var dialogsService = SYMPHONY.services.subscribe('dialogs');
@@ -11406,118 +11413,37 @@
 	            }, controllerName, 'https://uat.citivelocity.com/analytics/charting3/?allowCross=false', {
 	                canFloat: true
 	            });
-	            // dialogsService.show('test', controllerName, `
-	            // <dialog>
-	            //     <h1>Comment</h1>
-	            //     <multiline-input id="comment" placeholder="Add your comment..."/>
-	            //     <div>
-	            //         <action id="closeCommentDialog" class="tempo-text-color--link"/>
-	            //         <action id="commentIssue" class="tempo-text-color--link"/>
-	            //     </div>
-	            // </dialog>
-	            // `, {}, {});
 	        }, 300),
 	        render: function render(type, data) {
+	            if (type === chartMsgType) {
+	                var ticker = data.data.ticker;
+	                ticker = ticker.replace('&nbsp;', '').trim();
+	                console.log('=== ', ticker);
 	
-	            if (type == msgType) {
+	                var chartUrl = _lodash2.default.escape('https://uat.citivelocity.com/analytics/charting3/?allowCross=false&chartTag=' + chartMap[ticker]);
+	                console.log('chartUrl ', chartUrl);
+	                return { template: '<messageML>\n                        <iframe src="' + chartUrl + '" height="300" width="400"/>\n                    </messageML>', data: {} };
+	            }
+	            if (type === searchMsgType) {
 	
 	                var resultJson = JSON.parse(data.data).Results;
-	                // console.log('======',resultJson);
-	                // let resultJson = [];
+	
+	                var formatArticleUrl = function formatArticleUrl(article) {
+	                    return article["content-type"] === "video/mp4" ? article.mediaUrlAndroid : article.documentType === "Commentary" ? 'https://uat.citivelocity.com/cv2/smartlink/commentary/' + article.srcId : article.documentType === "Research" ? 'https://uat.citivelocity.com/cv2/smartlink/research/' + article.srcId : "#";
+	                };
+	
+	                var renderCategoryTitle = function renderCategoryTitle(article) {
+	                    return article["content-type"] === "video/mp4" ? '<span class="tempo-text-color--green">[VIDEO]</span>' : article.documentType === "Commentary" ? '<span class="tempo-text-color--orange">[COMMENTARY]</span>' : article.documentType === "Research" ? '<span class="tempo-text-color--purple">[RESEARCH]</span>' : "";
+	                };
+	
 	                var resultML = resultJson.map(function (article) {
-	                    return '\n                    <card class="barStyle" accent="tempo-bg-color--green" iconSrc="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">\n                        <header>\n                            <div>\n                                <a class="tempo-text-color--link" href="www.google.com">' + _lodash2.default.escape(article.docTitle) + '</a>\n                                    <span>Author</span>\n                                    <span class="tempo-text-color--blue">' + article.analyst.join(',') + '</span> \n                            </div>\n                        </header>\n                        <body>\n                        <div>\n                            <span class="tempo-text-color--secondary">Description:</span>\n                            <span class="tempo-text-color--normal">' + _lodash2.default.escape(article.docTeaser) + '</span>\n                        <br/>\n                        <img src="' + article.coverImageURL + '"/>\n                    </div>\n                    <hr/>\n                    </body>\n                    </card>';
+	                    console.log(article);
+	                    return '\n                    <card class="barStyle" accent-color="tempo-bg-color--green" icon-src="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">\n                        <header>\n                            <div>\n                                ' + renderCategoryTitle(article) + '\n                                <a class="tempo-text-color--link" href="' + formatArticleUrl(article) + '">' + _lodash2.default.escape(article.docTitle) + '</a>                                     \n                            </div>\n                        </header>\n                        <body>\n                        <div>\n                            <span class="tempo-text-color--secondary">Author</span>\n                            <span class="tempo-text-color--normal">' + article.analyst.join(',') + '</span>\n                            <br />\n                            <span class="tempo-text-color--secondary">Description:</span>\n                            <span class="tempo-text-color--normal">' + _lodash2.default.escape(article.docTeaser) + '</span>\n                            <br/>\n                            ' + (article.coverImageURL ? '<img src="${article.coverImageURL}"/>' : '') + '\n                        </div>\n                    <hr/>\n                    </body>\n                    </card>';
 	                });
 	
-	                return { template: '<messageML>' + resultML.join('') + '\n                <card class="barStyle" accent="tempo-bg-color--green" iconSrc="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">\n                <header>\n                    \n                        Charting\n                    \n                </header>\n                <body>\n                    \n                </body>\n                </card>\n            \n                    <div><action id="charting" class="tempo-btn--primary"/></div>\n                    </messageML>', data: {
+	                return { template: '<messageML>' + resultML.join('') + '\n                    </messageML>', data: {
 	                        charting: { label: 'Charting', service: controllerName, data: { searchContent: 'ibm' } }
 	                    } };
-	                // return {
-	                //     template: `
-	                //     <messageML>
-	
-	                //         <div>
-	                //             <a class="tempo-text-color--link" href="www.google.com">xxxx</a>
-	                //                 <span>Author</span>
-	                //                 <span class="tempo-text-color--blue">cccc</span> 
-	                //         </div>
-	
-	                //     <div>
-	
-	                //         <span class="tempo-text-color--secondary">Description:</span>
-	
-	                //         <span class="tempo-text-color--normal">dccc</span>
-	
-	                //     <br/>
-	
-	                // </div>
-	                // <hr/>
-	                // <div>
-	                // <action id="assignTo" class="tempo-btn--primary"/>
-	                // </div>
-	
-	
-	                //     </messageML>
-	                //     `,
-	                //     data: {assignTo: {label: 'Chart', service: controllerName, data: {a: 111}}}
-	                // }
-	                // return {
-	                //     // template: `<messageML>
-	                //     //     <div >hello world</div>
-	                //     //     <iframe height="200" width="400" src="https://uat.citivelocity.com/analytics/charting3/?allowCross=false" />
-	
-	                //     // </messageML>`,
-	                //     template: `
-	                //     <messageML>
-	                //     <div class="entity" >
-	                //     <card class="barStyle" accent="tempo-bg-color--green" iconSrc="https://cdn1.iconfinder.com/data/icons/logotypes/32/chrome-32.png">
-	                //         <header>
-	                //             <div>
-	                //                 <img src="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png" class="tempo-icon--document" />
-	
-	                //                 <a class="tempo-text-color--link" href="www.google.com">hello google</a>
-	                //                     <span class="tempo-text-color--normal">Subject is  - </span>
-	                //                     <span>User</span>
-	                //                     <span class="tempo-text-color--green">action</span>
-	
-	                //             </div>
-	                //         </header>
-	                //         <body>
-	                //             <div class="labelBackground badge">
-	                //                 <div>
-	                //                         <span class="tempo-text-color--secondary">Description:</span>
-	                //                         <span class="tempo-text-color--normal">xxxxxxxxx</span>
-	                //                     <br/>
-	                //                     <span class="tempo-text-color--secondary">Assignee:</span>
-	                //                         <mention email="racke1983cn@gmail.com" />
-	                //                 </div>
-	                //                 <hr/>
-	                //                 <div>
-	                //                     <div>
-	                //                     <img src="https://uat.citivelocity.com/analytics/eppublic/chartingbe/images/a413e76d-0069-432f-9265-e8d3520fb837.png"/>
-	                //                     </div>
-	                //                     <div>
-	                //                         <span class="tempo-text-color--secondary">&#160;&#160;&#160;Epic:</span>
-	                //                         <a href="http://google.com">google</a>
-	                //                     <span class="tempo-text-color--secondary">&#160;&#160;&#160;Status:</span>
-	                //                     <span class="tempo-bg-color--red tempo-text-color--white tempo-token">
-	                //                         testtesttest
-	                //                     </span>
-	
-	
-	                //                         <span class="tempo-text-color--secondary">&#160;&#160;&#160;Labels:</span>
-	
-	                //                             <span class="hashTag">#ddd</span>
-	                //                         </div>
-	
-	                //                 </div>
-	                //             </div>
-	                //         </body>
-	                //     </card>
-	                // </div>
-	                // </messageML>
-	                //     `,
-	                //     data: {}
-	                // };
 	            }
 	        },
 	        link: function link() {},
@@ -11525,17 +11451,6 @@
 	        selected: function selected() {},
 	        trigger: function trigger() {
 	
-	            // modulesService.show(
-	            //     config.appId, {
-	            //         title: config.appTitle
-	            //     },
-	            //     controllerName,
-	            //     'https://uat.citivelocity.com/analytics/charting3/?allowCross=false', {
-	            //         canFloat: true
-	            //     }
-	            // );
-	
-	            console.log('===config ', config);
 	            var url = [params.host + '/citibot/' + config.appContext + '/app.html', '?configurationId=' + params.configurationId, '&botUserId=' + params.botUserId, '&id=' + config.appId];
 	
 	            // invoke the module service to show our own application in the grid

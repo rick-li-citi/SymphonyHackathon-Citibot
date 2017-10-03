@@ -42,8 +42,10 @@ const registerModule = (config) => {
     
     const modulesService = SYMPHONY.services.subscribe('modules');
     const entityService = SYMPHONY.services.subscribe('entity');
-    let msgType = 'com.symphony.integration.zapier.event.v2.searchMessage';
-    entityService.registerRenderer(msgType, {}, controllerName);
+    let searchMsgType = 'com.symphony.integration.zapier.event.v2.searchMessage';
+    let chartMsgType = 'com.symphony.integration.zapier.event.v2.chartMessage';
+    entityService.registerRenderer(searchMsgType, {}, controllerName);
+    entityService.registerRenderer(chartMsgType, {}, controllerName);
     const chartMap = {
         'ibm': 'CREDIT.BOND.US459200HK05.PRICE',
         'google': 'CREDIT.BOND.US38259PAB85.PRICE',
@@ -65,45 +67,61 @@ const registerModule = (config) => {
             
         }, 300),
         render(type, data) {
-
-            if (type == msgType) {
+            if (type === chartMsgType) {
+                let ticker = data.data.ticker;
+                ticker = ticker.replace('&nbsp;', '').trim();
+                console.log('=== ', ticker);
+              
+                let chartUrl = _.escape('https://uat.citivelocity.com/analytics/charting3/?allowCross=false&chartTag='+chartMap[ticker]);
+                console.log('chartUrl ', chartUrl);
+                return {template: `<messageML>
+                        <iframe src="${chartUrl}" height="300" width="400"/>
+                    </messageML>`, data: {}};
+            }
+            if (type === searchMsgType) {
                 
                 let resultJson = JSON.parse(data.data).Results;
+
+                const formatArticleUrl = article => {
+                    return article["content-type"] === "video/mp4" ? article.mediaUrlAndroid
+                         : article.documentType === "Commentary"? `https://uat.citivelocity.com/cv2/smartlink/commentary/${article.srcId}`
+                         : article.documentType === "Research"  ? `https://uat.citivelocity.com/cv2/smartlink/research/${article.srcId}`
+                         : "#";
+                };
+
+                const renderCategoryTitle = article => {
+                    return article["content-type"] === "video/mp4" ? '<span class="tempo-text-color--green">[VIDEO]</span>'
+                         : article.documentType === "Commentary"? '<span class="tempo-text-color--orange">[COMMENTARY]</span>'
+                         : article.documentType === "Research"  ? '<span class="tempo-text-color--purple">[RESEARCH]</span>'
+                         : "";
+                };
+                
                 let resultML = resultJson.map( article => {
+                    console.log(article);
                     return `
-                    <card class="barStyle" accent="tempo-bg-color--green" iconSrc="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">
+                    <card class="barStyle" accent-color="tempo-bg-color--green" icon-src="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">
                         <header>
                             <div>
-                                <a class="tempo-text-color--link" href="www.google.com">${_.escape(article.docTitle)}</a>
-                                    <span>Author</span>
-                                    <span class="tempo-text-color--blue">${article.analyst.join(',')}</span> 
+                                ${renderCategoryTitle(article)}
+                                <a class="tempo-text-color--link" href="${formatArticleUrl(article)}">${_.escape(article.docTitle)}</a>                                     
                             </div>
                         </header>
                         <body>
                         <div>
+                            <span class="tempo-text-color--secondary">Author</span>
+                            <span class="tempo-text-color--normal">${article.analyst.join(',')}</span>
+                            <br />
                             <span class="tempo-text-color--secondary">Description:</span>
                             <span class="tempo-text-color--normal">${_.escape(article.docTeaser)}</span>
-                        <br/>
-                        <img src="${article.coverImageURL}"/>
-                    </div>
+                            <br/>
+                            ${article.coverImageURL ? '<img src="${article.coverImageURL}"/>' : ''}
+                        </div>
                     <hr/>
                     </body>
                     </card>`
                 });
                 
                 return {template: `<messageML>${resultML.join('')}
-                <card class="barStyle" accent="tempo-bg-color--green" iconSrc="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">
-                <header>
-                    
-                        Charting
-                    
-                </header>
-                <body>
-                    
-                </body>
-                </card>
-            
-                    <div><action id="charting" class="tempo-btn--primary"/></div>
                     </messageML>`, data: {
                         charting: {label: 'Charting', service: controllerName, data: {searchContent: 'ibm'}}
                 }};

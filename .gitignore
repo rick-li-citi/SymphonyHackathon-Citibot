@@ -21,3 +21,6 @@ npm-debug.log
 .classpath
 .settings/
 settings.xml
+
+
+*.zip
