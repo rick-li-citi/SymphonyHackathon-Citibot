@@ -74,25 +74,38 @@ const registerModule = (config) => {
             if (type == msgType) {
                 
                 let resultJson = JSON.parse(data.data).Results;
-                // console.log('======',resultJson);
+
+                
+
+                const formatArticleUrl = article => {
+                    return article["content-type"] === "video/mp4" ? article.mediaUrlAndroid
+                         : article.documentType === "Commentary"? `https://uat.citivelocity.com/cv2/smartlink/commentary/${article.srcId}`
+                         : article.documentType === "Research"  ? `https://uat.citivelocity.com/cv2/smartlink/research/${article.srcId}`
+                         : "#";
+                };
+                
                 // let resultJson = [];
                 let resultML = resultJson.map( article => {
+                    console.log("!!!!12312312312312312312312123123");
+                    console.log(article);
                     return `
-                    <card class="barStyle" accent="tempo-bg-color--green" iconSrc="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">
+                    <card class="barStyle" accent-color="tempo-bg-color--green" icon-src="http://rick-li.ngrok.io/citibot/apps/citibot/img/bigicons_bigicon_doc.svg.png">
                         <header>
                             <div>
-                                <a class="tempo-text-color--link" href="www.google.com">${_.escape(article.docTitle)}</a>
-                                    <span>Author</span>
-                                    <span class="tempo-text-color--blue">${article.analyst.join(',')}</span> 
+                                ${article["content-type"] === "video/mp4" ? '<span class="tempo-text-color--green">[VIDEO]</span>' : ''}
+                                <a class="tempo-text-color--link" href="${formatArticleUrl(article)}">${_.escape(article.docTitle)}</a>                                     
                             </div>
                         </header>
                         <body>
                         <div>
+                            <span class="tempo-text-color--secondary">Author</span>
+                            <span class="tempo-text-color--normal">${article.analyst.join(',')}</span>
+                            <br />
                             <span class="tempo-text-color--secondary">Description:</span>
                             <span class="tempo-text-color--normal">${_.escape(article.docTeaser)}</span>
-                        <br/>
-                        <img src="${article.coverImageURL}"/>
-                    </div>
+                            <br/>
+                            ${article.coverImageURL ? '<img src="${article.coverImageURL}"/>' : ''}
+                        </div>
                     <hr/>
                     </body>
                     </card>`
